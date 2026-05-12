@@ -101,6 +101,7 @@ textarea{resize:vertical;min-height:52px}
       <div id="coverageList"></div>
       <button class="add-btn" onclick="addCoverage()">+ Agregar cobertura</button>
     </div>
+
     <div class="section">
       <div class="section-title">Destacados del pie</div>
       <div id="featuresList"></div>
@@ -184,7 +185,7 @@ function buildFeatureRows(){
   const list=document.getElementById('featuresList');
   let h='';
   features.forEach((f,fi)=>{
-    h+=`<div class="feat-row"><select class="feat-icon-sel" onchange="features[${fi}].icon=this.value;render()">${ICONS.map(ic=>`<option value="${ic}"${ic===f.icon?' selected':''}>${ic}</option>`).join('')}</select><div style="flex:1;display:flex;flex-direction:column;gap:4px"><input type="text" value="${escH(f.label)}" placeholder="Título" oninput="features[${fi}].label=this.value;render()" style="font-size:12px"><input type="text" value="${escH(f.sub)}" placeholder="Subtítulo" oninput="features[${fi}].sub=this.value;render()" style="font-size:12px"></div><button class="del-btn" onclick="removeFeature(${fi})">×</button></div>`;
+    h+=`<div class="feat-row"><div style="flex:1;display:flex;flex-direction:column;gap:4px"><input type="text" value="${escH(f.label)}" placeholder="Título" oninput="features[${fi}].label=this.value;render()" style="font-size:12px"><input type="text" value="${escH(f.sub)}" placeholder="Subtítulo" oninput="features[${fi}].sub=this.value;render()" style="font-size:12px"></div><button class="del-btn" onclick="removeFeature(${fi})">×</button></div>`;
   });
   list.innerHTML=h;
 }
