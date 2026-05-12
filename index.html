@@ -36,6 +36,7 @@ textarea{resize:vertical;min-height:52px}
 .generate-btn:active{transform:scale(.98)}
 .preview-area{flex:1;padding:24px;overflow-y:auto;display:flex;flex-direction:column;align-items:center;background:#f0f2f5}
 .preview-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;margin-bottom:12px;align-self:flex-start}
+.pdf-page-wrap{transform-origin:top center;transform:scale(0.75);margin-bottom:calc((842px * 0.75) - 842px)}
 .pdf-page{background:white;width:595px;min-height:842px;box-shadow:0 2px 20px rgba(0,0,0,.15);border-radius:4px;overflow:hidden;font-family:'Helvetica Neue',Arial,sans-serif;color:#222}
 .pdf-header{background:#0B1F3A;padding:16px 28px;display:flex;align-items:center;gap:14px}
 .pdf-logo{display:flex;align-items:center}
@@ -118,7 +119,7 @@ textarea{resize:vertical;min-height:52px}
   </div>
   <div class="preview-area">
     <div class="preview-label">Vista previa</div>
-    <div class="pdf-page" id="pdfPreview"></div>
+    <div class="pdf-page-wrap"><div class="pdf-page" id="pdfPreview"></div>
   </div>
 </div>
 <script>
@@ -230,8 +231,10 @@ function drawHeader(doc, name, W, margin){
   const canvas = document.createElement('canvas');
   const tmpImg = new Image();
   tmpImg.src = LOGO_DATA;
-  canvas.width = tmpImg.naturalWidth || 400;
-  canvas.height = tmpImg.naturalHeight || 160;
+  const natW = tmpImg.naturalWidth || 600;
+  const natH = tmpImg.naturalHeight || 240;
+  canvas.width = natW;
+  canvas.height = natH;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(tmpImg, 0, 0);
   const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
@@ -242,7 +245,9 @@ function drawHeader(doc, name, W, margin){
   }
   ctx.putImageData(imgData,0,0);
   const cleanLogo = canvas.toDataURL('image/png');
-  doc.addImage(cleanLogo,'PNG',margin+2,8,120,46);
+  const logoH = 46;
+  const logoW = (natW / natH) * logoH;
+  doc.addImage(cleanLogo,'PNG',margin+2,8,logoW,logoH);
   doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(210,225,240);
   doc.text(name.toUpperCase(),W-margin,34,{align:'right'});
 }
@@ -269,20 +274,23 @@ function drawTableHeader(doc, y, W, margin){
 }
 
 function drawSubHeader(doc, y, W, margin){
+  const tableW = W-margin*2;
+  const valColW = numPlans===1 ? 90 : 75*numPlans;
+  const nameColW = tableW - valColW - 16;
   if(numPlans>1){
     doc.setFillColor(26,53,88);
-    doc.rect(margin,y,W-margin*2,17,'F');
-    const colW=(W-margin*2-120)/numPlans;
+    doc.rect(margin,y,tableW,17,'F');
+    const colW = valColW/numPlans;
     for(let i=0;i<numPlans;i++){
       doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(200,220,240);
-      doc.text(planNames[i]||'Plan '+(i+1),margin+120+colW*i+colW/2,y+11.5,{align:'center'});
+      doc.text(planNames[i]||'Plan '+(i+1), margin+8+nameColW+8+colW*i+colW/2, y+11.5, {align:'center'});
     }
     return y+17;
   } else {
     doc.setFillColor(26,53,88);
-    doc.rect(margin,y,W-margin*2,15,'F');
+    doc.rect(margin,y,tableW,15,'F');
     doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(190,210,235);
-    doc.text('COBERTURA',W-margin-10,y+10.5,{align:'right'});
+    doc.text('COBERTURA', W-margin-10, y+10.5, {align:'right'});
     return y+15;
   }
 }
@@ -304,8 +312,17 @@ function downloadPDF(){
   let tableOpenY=tableTopY+2;
 
   coverages.forEach((c,ci)=>{
-    // Check if row fits, if not close table, new page, reopen
-    if(y+15 > H-bottomReserve){
+    // Fixed column widths to prevent overlap
+    const tableW = W - margin*2;
+    const valColW = numPlans===1 ? 90 : 75*numPlans;
+    const nameColW = tableW - valColW - 16;
+
+    doc.setFontSize(8); doc.setFont('helvetica','normal');
+    const nameLines = doc.splitTextToSize(c.name, nameColW);
+    const rowH = Math.max(15, nameLines.length * 11 + 6);
+
+    // Check again with actual row height
+    if(y + rowH > H - bottomReserve){
       doc.setDrawColor(11,31,58);doc.setLineWidth(1.5);
       doc.roundedRect(margin,tableOpenY,W-margin*2,y-tableOpenY,6,6);
       doc.addPage();
@@ -315,25 +332,27 @@ function downloadPDF(){
       y=drawSubHeader(doc,y,W,margin);
       tableOpenY=tableTopY+2;
     }
+
     const isOdd=ci%2===0;
     doc.setFillColor(isOdd?247:255,isOdd?249:255,isOdd?252:255);
-    doc.rect(margin,y,W-margin*2,15,'F');
+    doc.rect(margin,y,W-margin*2,rowH,'F');
     doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(50,50,50);
-    const nameStr=c.name.length>65?c.name.substring(0,63)+'…':c.name;
-    doc.text(nameStr,margin+8,y+10.5);
+    const textY = y + (rowH/2) - ((nameLines.length-1)*5.5) + 3;
+    doc.text(nameLines, margin+8, textY);
+
     if(numPlans===1){
       doc.setFont('helvetica','bold');doc.setTextColor(11,31,58);
-      doc.text(c.vals[0]||'—',W-margin-8,y+10.5,{align:'right'});
+      doc.text(c.vals[0]||'—', W-margin-8, y+rowH/2+3, {align:'right'});
     } else {
-      const colW=(W-margin*2-120)/numPlans;
+      const colW=(tableW - nameColW - 16)/numPlans;
       for(let i=0;i<numPlans;i++){
         doc.setFont('helvetica','bold');doc.setTextColor(11,31,58);
-        doc.text(c.vals[i]||'—',margin+120+colW*i+colW/2,y+10.5,{align:'center'});
+        doc.text(c.vals[i]||'—', margin+8+nameColW+8+colW*i+colW/2, y+rowH/2+3, {align:'center'});
       }
     }
     doc.setDrawColor(215,225,238);doc.setLineWidth(0.3);
-    doc.line(margin,y+15,W-margin,y+15);
-    y+=15;
+    doc.line(margin,y+rowH,W-margin,y+rowH);
+    y+=rowH;
   });
 
   // Close table
