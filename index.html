@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generador de Perfiles — Universal Assistance</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #222; }
+
+.app { display: flex; height: 100vh; min-height: 600px; }
+
+.sidebar {
+  width: 360px; min-width: 360px;
+  background: #fff;
+  border-right: 1px solid #e2e8f0;
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #0B1F3A;
+}
+.sidebar-header h1 { color: white; font-size: 14px; font-weight: 600; letter-spacing: 0.5px; }
+.sidebar-header p { color: rgba(255,255,255,0.6); font-size: 11px; margin-top: 2px; }
+
+.section {
+  padding: 14px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.section-title {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.8px; color: #64748b;
+  margin-bottom: 10px;
+}
+
+label { font-size: 12px; color: #64748b; display: block; margin-bottom: 4px; }
+input[type=text], textarea, select {
+  width: 100%; font-size: 13px; padding: 7px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #1e293b;
+  outline: none;
+  font-family: inherit;
+}
+input[type=text]:focus, textarea:focus, select:focus {
+  border-color: #E8196E;
+  box-shadow: 0 0 0 2px rgba(232,25,110,0.12);
+  background: #fff;
+}
+textarea { resize: vertical; min-height: 52px; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+.tab {
+  flex: 1; padding: 6px 8px; text-align: center;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px; background: transparent;
+  color: #64748b;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.tab.active { background: #0B1F3A; color: white; border-color: #0B1F3A; }
+.tab:hover:not(.active) { background: #f1f5f9; }
+
+.col-headers { display: flex; gap: 6px; margin-bottom: 6px; }
+.col-headers span { font-size: 11px; color: #94a3b8; font-weight: 500; }
+
+.coverage-row {
+  display: flex; gap: 6px; align-items: flex-start; margin-bottom: 6px;
+}
+.coverage-row input { font-size: 12px; padding: 6px 8px; }
+.coverage-row .cov-name { flex: 2; }
+.coverage-row .cov-val { flex: 1; }
+.del-btn {
+  width: 28px; min-width: 28px; height: 30px; display: flex;
+  align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer;
+  color: #94a3b8; border-radius: 4px;
+  font-size: 18px; padding: 0; line-height: 1;
+  transition: color 0.15s, background 0.15s;
+  font-family: inherit;
+}
+.del-btn:hover { color: #c0392b; background: rgba(192,57,43,0.08); }
+
+.add-btn {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #E8196E; cursor: pointer;
+  background: none; border: none; padding: 6px 0;
+  font-weight: 500; font-family: inherit;
+}
+.add-btn:hover { opacity: 0.8; }
+
+.generate-btn {
+  margin: 16px 20px;
+  width: calc(100% - 40px);
+  background: #E8196E; color: white;
+  border: none; border-radius: 8px;
+  padding: 12px; font-size: 13px; font-weight: 600;
+  cursor: pointer; letter-spacing: 0.3px;
+  transition: background 0.15s, transform 0.1s;
+  font-family: inherit;
+}
+.generate-btn:hover { background: #c4145b; }
+.generate-btn:active { transform: scale(0.98); }
+
+.preview-area {
+  flex: 1; padding: 24px; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center;
+  background: #f0f2f5;
+}
+
+.preview-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.8px; color: #94a3b8;
+  margin-bottom: 12px; align-self: flex-start;
+}
+
+.pdf-page {
+  background: white; width: 595px; min-height: 842px;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.15);
+  border-radius: 4px; overflow: hidden;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  color: #222;
+}
+
+.pdf-header {
+  background: #0B1F3A;
+  padding: 20px 28px 18px;
+  display: flex; align-items: center; gap: 14px;
+}
+.pdf-logo { display: flex; align-items: center; gap: 10px; }
+.pdf-logo-icon {
+  width: 36px; height: 36px; background: white; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 900; color: #0B1F3A;
+  letter-spacing: -1px; font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+.pdf-logo-text {
+  color: white; font-size: 13px; font-weight: 700; line-height: 1.2; letter-spacing: 0.5px;
+}
+.pdf-logo-text small {
+  font-weight: 400; font-size: 9px; display: block; letter-spacing: 1.5px;
+  color: rgba(255,255,255,0.65); text-transform: uppercase; margin-top: 2px;
+}
+.pdf-product-title {
+  color: white; font-size: 10px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  margin-left: auto; opacity: 0.85;
+}
+.pdf-plan-badges { display: flex; gap: 8px; margin-left: auto; }
+.pdf-plan-badge {
+  background: rgba(255,255,255,0.15); color: white;
+  font-size: 10px; font-weight: 600; padding: 3px 10px;
+  border-radius: 20px; letter-spacing: 0.5px;
+}
+
+.pdf-body { padding: 20px 28px 24px; }
+
+.pdf-table-wrapper {
+  border: 1.5px solid #1a2f4e;
+  border-radius: 10px; overflow: hidden;
+  margin-bottom: 14px;
+}
+.pdf-table-head {
+  background: #0B1F3A; padding: 12px 18px;
+}
+.pdf-table-head h2 { color: white; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; }
+
+.pdf-col-headers {
+  display: flex; background: #1a3558; padding: 6px 18px; gap: 8px;
+}
+.pdf-col-header-name { flex: 2; font-size: 9px; color: rgba(255,255,255,0.6); font-weight: 500; }
+.pdf-col-header-val { flex: 1; text-align: right; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.pdf-col-header-val-c { flex: 1; text-align: center; font-size: 9px; color: rgba(255,255,255,0.9); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.pdf-cov-row {
+  display: flex; align-items: center; padding: 7px 18px; gap: 8px;
+  border-bottom: 0.5px solid #e8edf2; font-size: 11.5px;
+}
+.pdf-cov-row:last-child { border-bottom: none; }
+.pdf-cov-row:nth-child(odd) { background: #f7f9fc; }
+.pdf-cov-row:nth-child(even) { background: white; }
+.pdf-cov-name { flex: 2; color: #333; }
+.pdf-cov-val { flex: 1; text-align: right; font-weight: 700; color: #0B1F3A; font-size: 11.5px; }
+.pdf-cov-val-multi { flex: 1; text-align: center; font-weight: 700; color: #0B1F3A; font-size: 11.5px; }
+
+.pdf-footnote { font-size: 9.5px; color: #666; margin-bottom: 12px; line-height: 1.5; padding: 0 2px; }
+
+.pdf-icons-row { display: flex; gap: 10px; margin-bottom: 12px; }
+.pdf-icon-card {
+  flex: 1; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 10px 12px; display: flex; align-items: flex-start; gap: 10px;
+}
+.pdf-icon-circle {
+  width: 30px; height: 30px; min-width: 30px; border-radius: 50%;
+  background: #e8f0f9; display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.pdf-icon-label { font-size: 9.5px; font-weight: 700; color: #0B1F3A; line-height: 1.3; }
+.pdf-icon-sub { font-size: 8.5px; color: #666; line-height: 1.4; margin-top: 2px; }
+
+.pdf-banner {
+  background: #E8196E; border-radius: 6px;
+  padding: 11px 18px; text-align: center;
+  font-size: 10.5px; font-weight: 700; color: white;
+  letter-spacing: 0.2px; line-height: 1.4;
+}
+
+.feat-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
+.feat-row input { flex: 1; }
+.feat-icon-sel {
+  width: 38px; min-width: 38px; height: 30px; text-align: center; font-size: 14px;
+  border: 1px solid #cbd5e1; border-radius: 6px;
+  background: #f8fafc; cursor: pointer;
+  font-family: inherit;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>Generador de Perfiles de Cobertura</h1>
+      <p>Universal Assistance — Asistencia al Viajero</p>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Producto</div>
+      <label>Nombre del producto / cliente</label>
+      <input type="text" id="productName" value="ASISTENCIA AL VIAJERO" oninput="render()">
+      <div style="margin-top:10px">
+        <label>Cantidad de planes</label>
+        <div class="tabs" id="planTabs">
+          <button class="tab active" onclick="setPlans(1)">1 plan</button>
+          <button class="tab" onclick="setPlans(2)">2 planes</button>
+          <button class="tab" onclick="setPlans(3)">3 planes</button>
+        </div>
+        <div id="planNamesWrap"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Coberturas</div>
+      <div class="col-headers" id="colHeaders">
+        <span style="flex:2">Cobertura</span>
+        <span style="flex:1;text-align:right">Valor</span>
+        <span style="width:28px"></span>
+      </div>
+      <div id="coverageList"></div>
+      <button class="add-btn" onclick="addCoverage()">+ Agregar cobertura</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Destacados del pie</div>
+      <div id="featuresList"></div>
+      <button class="add-btn" onclick="addFeature()">+ Agregar destacado</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Textos legales</div>
+      <label>Notas al pie</label>
+      <textarea id="footnote" oninput="render()" rows="3" style="font-size:11px">*incluido dentro del límite de asistencia médica. ***o el mínimo establecido por autoridad gubernamental en país de destino</textarea>
+      <div style="margin-top:8px">
+        <label>Banner legal (parte inferior)</label>
+        <textarea id="banner" oninput="render()" rows="2" style="font-size:11px">Sera condición del servicio contar con plan OSDE vigente al momento de requerir la asistencia.</textarea>
+      </div>
+    </div>
+
+    <button class="generate-btn" onclick="downloadPDF()">⬇ Descargar PDF</button>
+  </div>
+
+  <div class="preview-area">
+    <div class="preview-label">Vista previa</div>
+    <div class="pdf-page" id="pdfPreview"></div>
+  </div>
+</div>
+
+<script>
+let numPlans = 1;
+let planNames = ['Plan 210', 'Plan 310', 'Plan 410'];
+
+let coverages = [
+  { name: 'Asistencia médica en caso de enfermedad o accidente (cubre Covid19-SARSCOV2)', vals: ['USD 20.000','USD 30.000','USD 50.000'] },
+  { name: 'Asistencia médica en caso de preexistencia *', vals: ['USD 5.000','USD 8.000','USD 12.000'] },
+  { name: 'Teleasistencia', vals: ['Incluido','Incluido','Incluido'] },
+  { name: 'Gastos de hotel por convalecencia por Covid19-SARSCOV2', vals: ['USD 1.000***','USD 1.500***','USD 2.000***'] },
+  { name: 'Medicamentos ambulatorios*.', vals: ['USD 500','USD 750','USD 1.000'] },
+  { name: 'Odontología', vals: ['USD 500','USD 750','USD 1.000'] },
+  { name: 'Días corridos por viaje', vals: ['30 días','45 días','60 días'] },
+  { name: 'Gastos de hotel por convalecencia - Total', vals: ['USD 1.000','USD 1.500','USD 2.000'] },
+  { name: 'Gastos de hotel familiar acompañante *', vals: ['Incluido','Incluido','Incluido'] },
+  { name: 'Traslado de familiar en caso de hospitalización*', vals: ['Incluido','Incluido','Incluido'] },
+  { name: 'Repatriación de restos*', vals: ['Incluido','Incluido','Incluido'] },
+  { name: 'Repatriación sanitaria*', vals: ['Incluido','Incluido','Incluido'] },
+  { name: 'Anticipo de fondos para fianzas', vals: ['USD 8.000','USD 10.000','USD 12.000'] },
+  { name: 'Asistencia legal en caso de accidente', vals: ['USD 5.000','USD 7.000','USD 10.000'] },
+  { name: 'Límite de edad', vals: ['Ilimitado','Ilimitado','Ilimitado'] },
+  { name: 'Ámbito de cobertura', vals: ['Países limítrofes','Mundo exc. EEUU','Mundo'] },
+];
+
+let features = [
+  { icon: '🦠', label: 'Cobertura frente a covid-19', sub: 'Consulta las tarifas especiales' },
+  { icon: '💊', label: 'Preexistencias', sub: 'Amplia el tope en asistencia médica por preexistencias' },
+  { icon: '👨‍⚕️', label: 'Teleasistencia médica', sub: 'Servicios médicos de calidad las 24 horas del día' },
+];
+
+const ICONS = ['🦠','💊','👨‍⚕️','✈️','🏥','🦷','🚑','📋','🛡️','💼','🌍','📞','⭐','🔒','📱'];
+
+function setPlans(n) {
+  numPlans = n;
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i === n-1));
+  buildPlanNames();
+  buildCoverageRows();
+  render();
+}
+
+function buildPlanNames() {
+  const w = document.getElementById('planNamesWrap');
+  if (numPlans === 1) { w.innerHTML = ''; return; }
+  let html = '<div style="display:flex;gap:6px;margin-top:6px;">';
+  for (let i = 0; i < numPlans; i++) {
+    html += `<div style="flex:1"><label>Plan ${i+1}</label><input type="text" value="${planNames[i]||'Plan '+(i+1)}" oninput="planNames[${i}]=this.value;render()" style="font-size:12px"></div>`;
+  }
+  html += '</div>';
+  w.innerHTML = html;
+}
+
+function buildCoverageRows() {
+  const list = document.getElementById('coverageList');
+  const hdr = document.getElementById('colHeaders');
+  let hdrHtml = '<span style="flex:2">Cobertura</span>';
+  for (let i = 0; i < numPlans; i++) hdrHtml += `<span style="flex:1;text-align:right">${numPlans > 1 ? 'Plan '+(i+1) : 'Valor'}</span>`;
+  hdrHtml += '<span style="width:28px"></span>';
+  hdr.innerHTML = hdrHtml;
+
+  let html = '';
+  coverages.forEach((c, ci) => {
+    html += `<div class="coverage-row">
+      <input class="cov-name" type="text" value="${escHtml(c.name)}" oninput="coverages[${ci}].name=this.value;render()">`;
+    for (let i = 0; i < numPlans; i++) {
+      html += `<input class="cov-val" type="text" value="${escHtml(c.vals[i]||'')}" placeholder="valor" oninput="coverages[${ci}].vals[${i}]=this.value;render()">`;
+    }
+    html += `<button class="del-btn" onclick="removeCoverage(${ci})">×</button></div>`;
+  });
+  list.innerHTML = html;
+}
+
+function buildFeatureRows() {
+  const list = document.getElementById('featuresList');
+  let html = '';
+  features.forEach((f, fi) => {
+    html += `<div class="feat-row">
+      <select class="feat-icon-sel" onchange="features[${fi}].icon=this.value;render()">
+        ${ICONS.map(ic => `<option value="${ic}" ${ic === f.icon ? 'selected' : ''}>${ic}</option>`).join('')}
+      </select>
+      <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+        <input type="text" value="${escHtml(f.label)}" placeholder="Título" oninput="features[${fi}].label=this.value;render()" style="font-size:12px">
+        <input type="text" value="${escHtml(f.sub)}" placeholder="Subtítulo" oninput="features[${fi}].sub=this.value;render()" style="font-size:12px">
+      </div>
+      <button class="del-btn" onclick="removeFeature(${fi})">×</button>
+    </div>`;
+  });
+  list.innerHTML = html;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function addCoverage() {
+  coverages.push({ name: 'Nueva cobertura', vals: ['', '', ''] });
+  buildCoverageRows(); render();
+}
+function removeCoverage(i) { coverages.splice(i, 1); buildCoverageRows(); render(); }
+function addFeature() {
+  features.push({ icon: '🛡️', label: 'Título', sub: 'Descripción' });
+  buildFeatureRows(); render();
+}
+function removeFeature(i) { features.splice(i, 1); buildFeatureRows(); render(); }
+
+function render() {
+  const name = document.getElementById('productName').value;
+  const footnote = document.getElementById('footnote').value;
+  const banner = document.getElementById('banner').value;
+
+  let colHeadersHtml = `<span class="pdf-col-header-name"></span>`;
+  if (numPlans === 1) {
+    colHeadersHtml += `<span class="pdf-col-header-val">Cobertura</span>`;
+  } else {
+    for (let i = 0; i < numPlans; i++) {
+      colHeadersHtml += `<span class="pdf-col-header-val-c">${escHtml(planNames[i]||'Plan '+(i+1))}</span>`;
+    }
+  }
+
+  let planBadgesHtml = '';
+  if (numPlans > 1) {
+    for (let i = 0; i < numPlans; i++) {
+      planBadgesHtml += `<span class="pdf-plan-badge">${escHtml(planNames[i]||'Plan '+(i+1))}</span>`;
+    }
+  }
+
+  let rowsHtml = coverages.map(c => {
+    let valsHtml = numPlans === 1
+      ? `<span class="pdf-cov-val">${escHtml(c.vals[0]||'—')}</span>`
+      : Array.from({length: numPlans}, (_,i) => `<span class="pdf-cov-val-multi">${escHtml(c.vals[i]||'—')}</span>`).join('');
+    return `<div class="pdf-cov-row"><span class="pdf-cov-name">${escHtml(c.name)}</span>${valsHtml}</div>`;
+  }).join('');
+
+  let iconsHtml = features.map(f => `
+    <div class="pdf-icon-card">
+      <div class="pdf-icon-circle">${f.icon}</div>
+      <div>
+        <div class="pdf-icon-label">${escHtml(f.label)}</div>
+        <div class="pdf-icon-sub">${escHtml(f.sub)}</div>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('pdfPreview').innerHTML = `
+    <div class="pdf-header">
+      <div class="pdf-logo">
+        <div class="pdf-logo-icon">ua</div>
+        <div class="pdf-logo-text">universal<br>assistance<small>Asistencia al Viajero</small></div>
+      </div>
+      ${numPlans > 1
+        ? `<div class="pdf-plan-badges">${planBadgesHtml}</div>`
+        : `<div class="pdf-product-title">${escHtml(name)}</div>`}
+    </div>
+    <div class="pdf-body">
+      <div class="pdf-table-wrapper">
+        <div class="pdf-table-head"><h2>COBERTURAS</h2></div>
+        <div class="pdf-col-headers">${colHeadersHtml}</div>
+        ${rowsHtml}
+      </div>
+      <div class="pdf-footnote">${escHtml(footnote)}</div>
+      ${iconsHtml ? `<div class="pdf-icons-row">${iconsHtml}</div>` : ''}
+      <div class="pdf-banner">${escHtml(banner)}</div>
+    </div>
+  `;
+}
+
+function downloadPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const name = document.getElementById('productName').value || 'perfil-cobertura';
+  const footnote = document.getElementById('footnote').value;
+  const banner = document.getElementById('banner').value;
+  const W = 595, margin = 28;
+  let y = 0;
+
+  // Header
+  doc.setFillColor(11, 31, 58);
+  doc.rect(0, 0, W, 62, 'F');
+  doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+  doc.text('universal assistance', margin+4, 27);
+  doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(160,190,215);
+  doc.text('ASISTENCIA AL VIAJERO', margin+4, 40);
+  doc.setFontSize(8.5); doc.setFont('helvetica','bold'); doc.setTextColor(210,225,240);
+  doc.text(name.toUpperCase(), W-margin, 34, {align:'right'});
+
+  y = 76;
+
+  // Table header
+  doc.setFillColor(11, 31, 58);
+  doc.roundedRect(margin, y, W-margin*2, 28, 6, 6, 'F');
+  doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+  doc.text('COBERTURAS', margin+14, y+18);
+
+  if (numPlans > 1) {
+    let bx = W-margin-12;
+    for (let i = numPlans-1; i >= 0; i--) {
+      const label = planNames[i]||'Plan '+(i+1);
+      const tw = doc.getTextWidth(label) + 18;
+      bx -= tw;
+      doc.setFillColor(40, 70, 120);
+      doc.roundedRect(bx, y+6, tw, 16, 3, 3, 'F');
+      doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+      doc.text(label, bx+tw/2, y+17, {align:'center'});
+      bx -= 5;
+    }
+  }
+  y += 28;
+
+  // Column sub-headers
+  if (numPlans > 1) {
+    doc.setFillColor(26, 53, 88);
+    doc.rect(margin, y, W-margin*2, 17, 'F');
+    const colW = (W-margin*2-120) / numPlans;
+    for (let i = 0; i < numPlans; i++) {
+      doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(200,220,240);
+      doc.text(planNames[i]||'Plan '+(i+1), margin+120+colW*i+colW/2, y+11.5, {align:'center'});
+    }
+    y += 17;
+  } else {
+    doc.setFillColor(26, 53, 88);
+    doc.rect(margin, y, W-margin*2, 15, 'F');
+    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(190,210,235);
+    doc.text('COBERTURA', W-margin-10, y+10.5, {align:'right'});
+    y += 15;
+  }
+
+  // Coverage rows
+  const tableStartY = y;
+  coverages.forEach((c, ci) => {
+    const isOdd = ci % 2 === 0;
+    doc.setFillColor(isOdd ? 247 : 255, isOdd ? 249 : 255, isOdd ? 252 : 255);
+    doc.rect(margin, y, W-margin*2, 15, 'F');
+    doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(50,50,50);
+    const nameStr = c.name.length > 65 ? c.name.substring(0,63)+'…' : c.name;
+    doc.text(nameStr, margin+8, y+10.5);
+    if (numPlans === 1) {
+      doc.setFont('helvetica','bold'); doc.setTextColor(11,31,58);
+      doc.text(c.vals[0]||'—', W-margin-8, y+10.5, {align:'right'});
+    } else {
+      const colW = (W-margin*2-120) / numPlans;
+      for (let i = 0; i < numPlans; i++) {
+        doc.setFont('helvetica','bold'); doc.setTextColor(11,31,58);
+        doc.text(c.vals[i]||'—', margin+120+colW*i+colW/2, y+10.5, {align:'center'});
+      }
+    }
+    doc.setDrawColor(215,225,238); doc.setLineWidth(0.3);
+    doc.line(margin, y+15, W-margin, y+15);
+    y += 15;
+  });
+
+  // Table border
+  doc.setDrawColor(11,31,58); doc.setLineWidth(1.5);
+  doc.roundedRect(margin, 76+2, W-margin*2, y-76-2, 6, 6);
+
+  y += 10;
+
+  // Footnote
+  doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(100,100,100);
+  const fnLines = doc.splitTextToSize(footnote, W-margin*2);
+  doc.text(fnLines, margin, y);
+  y += fnLines.length * 9 + 10;
+
+  // Feature cards
+  if (features.length > 0) {
+    const featW = (W-margin*2 - 8*(features.length-1)) / features.length;
+    features.forEach((f, i) => {
+      const fx = margin + i*(featW+8);
+      doc.setFillColor(245,248,252); doc.setDrawColor(215,225,238); doc.setLineWidth(0.5);
+      doc.roundedRect(fx, y, featW, 36, 5, 5, 'FD');
+      doc.setFontSize(8.5); doc.setFont('helvetica','bold'); doc.setTextColor(11,31,58);
+      const labelLines = doc.splitTextToSize(f.label, featW-38);
+      doc.text(labelLines, fx+34, y+11);
+      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(90,90,90);
+      const subLines = doc.splitTextToSize(f.sub, featW-38);
+      doc.text(subLines, fx+34, y+11+(labelLines.length*9));
+    });
+    y += 46;
+  }
+
+  // Banner
+  doc.setFillColor(232, 25, 110);
+  doc.roundedRect(margin, y, W-margin*2, 26, 5, 5, 'F');
+  doc.setFontSize(8.5); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+  const bannerLines = doc.splitTextToSize(banner, W-margin*2-20);
+  doc.text(bannerLines, W/2, y+10+(bannerLines.length===1?4:0), {align:'center'});
+
+  const safeName = name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+  doc.save(`perfil-cobertura-${safeName||'ua'}.pdf`);
+}
+
+// Init
+buildPlanNames();
+buildCoverageRows();
+buildFeatureRows();
+render();
+</script>
+</body>
+</html>
